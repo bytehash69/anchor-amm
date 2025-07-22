@@ -22,7 +22,7 @@ pub struct Initialize<'info> {
         init,
         payer = admin,
         space = 8 + Pool::INIT_SPACE,
-        seeds = [ b"pool" ],
+        seeds = [b"pool"],
         bump
     )]
     pub pool:Account<'info,Pool>,
@@ -31,12 +31,12 @@ pub struct Initialize<'info> {
         init,
         payer = admin,
         mint::decimals = 6,
-        mint::authority = pool.key(),
+        mint::authority = pool,
         mint::token_program = token_program,
         seeds = [ b"lp",pool.key().as_ref()],
         bump
     )]
-    pub lp: InterfaceAccount<'info,Mint>,
+    pub mint_lp: InterfaceAccount<'info,Mint>,
 
     #[account(
         init,
@@ -65,15 +65,15 @@ impl<'info> Initialize<'info> {
     pub fn initialize(
         &mut self,
         fee: u16,
-        authority: Option<Pubkey>,
-        bumps: &InitializeBumps
+        pool_bump: u8,
+        lp_bump: u8
     ) -> Result<()> {
         self.pool.set_inner(Pool { 
-            authority, 
             mint_x: self.mint_x.key(), 
             mint_y: self.mint_y.key(), 
-            fee, pool_bump: bumps.pool, 
-            lp_bump: bumps.lp 
+            fee, 
+            pool_bump: pool_bump, 
+            lp_bump: lp_bump
         });
         Ok(())
     }
