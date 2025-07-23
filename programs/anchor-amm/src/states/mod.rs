@@ -6,5 +6,5 @@ pub struct Pool {
     pub mint_y: Pubkey,
     pub fee: u16,
     pub pool_bump: u8,
-    pub lp_bump: u8
+    pub lp_bump: u8,
 }
