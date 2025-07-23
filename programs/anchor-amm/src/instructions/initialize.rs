@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{associated_token::AssociatedToken, token_interface::{Mint,TokenAccount,TokenInterface}};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{Mint, TokenAccount, TokenInterface},
+};
 
 use crate::states::Pool;
 
@@ -11,12 +14,12 @@ pub struct Initialize<'info> {
     #[account(
         mint::token_program = token_program
     )]
-    pub mint_x: InterfaceAccount<'info,Mint>,
+    pub mint_x: InterfaceAccount<'info, Mint>,
 
     #[account(
         mint::token_program = token_program
     )]
-    pub mint_y: InterfaceAccount<'info,Mint>,
+    pub mint_y: InterfaceAccount<'info, Mint>,
 
     #[account(
         init,
@@ -25,8 +28,8 @@ pub struct Initialize<'info> {
         seeds = [b"pool"],
         bump
     )]
-    pub pool:Account<'info,Pool>,
-    
+    pub pool: Account<'info, Pool>,
+
     #[account(
         init,
         payer = admin,
@@ -36,7 +39,7 @@ pub struct Initialize<'info> {
         seeds = [ b"lp",pool.key().as_ref()],
         bump
     )]
-    pub mint_lp: InterfaceAccount<'info,Mint>,
+    pub mint_lp: InterfaceAccount<'info, Mint>,
 
     #[account(
         init,
@@ -45,7 +48,7 @@ pub struct Initialize<'info> {
         associated_token::authority = pool,
         associated_token::token_program = token_program
     )]
-    pub vault_x: InterfaceAccount<'info,TokenAccount>,
+    pub vault_x: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,
@@ -54,26 +57,21 @@ pub struct Initialize<'info> {
         associated_token::authority = pool,
         associated_token::token_program = token_program
     )]
-    pub vault_y: InterfaceAccount<'info,TokenAccount>,
+    pub vault_y: InterfaceAccount<'info, TokenAccount>,
 
-    pub associated_token_program: Program<'info,AssociatedToken>,
-    pub system_program: Program<'info,System>,
-    pub token_program: Interface<'info,TokenInterface>
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 impl<'info> Initialize<'info> {
-    pub fn initialize(
-        &mut self,
-        fee: u16,
-        pool_bump: u8,
-        lp_bump: u8
-    ) -> Result<()> {
-        self.pool.set_inner(Pool { 
-            mint_x: self.mint_x.key(), 
-            mint_y: self.mint_y.key(), 
-            fee, 
-            pool_bump: pool_bump, 
-            lp_bump: lp_bump
+    pub fn initialize(&mut self, fee: u16, pool_bump: u8, lp_bump: u8) -> Result<()> {
+        self.pool.set_inner(Pool {
+            mint_x: self.mint_x.key(),
+            mint_y: self.mint_y.key(),
+            fee,
+            pool_bump: pool_bump,
+            lp_bump: lp_bump,
         });
         Ok(())
     }
