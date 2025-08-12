@@ -2,6 +2,10 @@ use anchor_lang::prelude::*;
 
 declare_id!("ArFY5WmLTSRE8mqPKXbLew4NZ11LceAmnJ7KfHRQ7fDp");
 
+pub mod states;
+
+pub use states::Amm;
+
 #[program]
 pub mod anchor_amm {
     use super::*;
