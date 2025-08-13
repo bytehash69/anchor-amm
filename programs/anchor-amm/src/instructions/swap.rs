@@ -1,15 +1,15 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{burn, transfer_checked, Burn, Mint, Token, TokenAccount, TransferChecked},
+    token::{mint_to, transfer_checked, Mint, MintTo, Token, TokenAccount, TransferChecked},
 };
-use constant_product_curve::ConstantProduct;
+use constant_product_curve::{ConstantProduct, LiquidityPair};
 
 use crate::errors::AmmError;
 use crate::Amm;
 
 #[derive(Accounts)]
-pub struct Withdraw<'info> {
+pub struct Swap<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
@@ -80,52 +80,82 @@ pub struct Withdraw<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
-impl<'info> Withdraw<'info> {
-    pub fn withdraw(&mut self, amount: u64, max_x: u64, max_y: u64) -> Result<()> {
-        require!(amount != 0, AmmError::InvalidAmount);
+impl<'info> Swap<'info> {
+    pub fn swap(&mut self, is_x: bool, amount_in: u64, min_amount_out: u64) -> Result<()> {
+        require!(amount_in > 0, AmmError::InvalidAmount);
 
-        let (x, y) = match 
-            self.mint_lp.supply == 0
-            && self.vault_x.amount == 0
-            && self.vault_y.amount == 0
-        {
-            true => (max_x, max_y),
-            false => {
-                let amounts = ConstantProduct::xy_deposit_amounts_from_l(
-                    self.vault_x.amount,
-                    self.vault_y.amount,
-                    self.mint_lp.supply,
-                    amount,
-                    6,
-                )
-                .unwrap();
-                (amounts.x, amounts.y)
-            }
+        let mut curve = ConstantProduct::init(
+            self.vault_x.amount,
+            self.vault_y.amount,
+            self.mint_lp.supply,
+            self.amm.fee,
+            None,
+        )
+        .map_err(AmmError::from)?;
+
+        let p = if is_x {
+            LiquidityPair::X
+        } else {
+            LiquidityPair::Y
         };
 
-        require!(x <= max_x && y <= max_y, AmmError::SlippageExceeded);
+        let swap_result = curve
+            .swap(p, amount_in, min_amount_out)
+            .map_err(AmmError::from)?;
 
-        self.burn_lp_tokens(amount)?;
-        self.withdraw_tokens(true, x)?;
-        self.withdraw_tokens(false, y)?;
+        require!(swap_result.deposit != 0, AmmError::InvalidAmount);
+        require!(swap_result.withdraw != 0, AmmError::InvalidAmount);
+
+        self.deposit_token(is_x, swap_result.deposit)?;
+        self.withdraw_token(!is_x, swap_result.withdraw)?;
 
         Ok(())
     }
 
-    pub fn withdraw_tokens(&mut self, is_x: bool, amount: u64) ->Result<()> {
-        let (from, to, mint, decimals) = match is_x {
-            true => (
+    pub fn deposit_token(&mut self, is_x: bool, amount: u64) -> Result<()> {
+        let (from, to, mint, decimals) = if is_x {
+            (
+                self.user_token_account_x.to_account_info(),
+                self.vault_x.to_account_info(),
+                self.mint_x.to_account_info(),
+                self.mint_x.decimals,
+            )
+        } else {
+            (
+                self.user_token_account_y.to_account_info(),
+                self.vault_y.to_account_info(),
+                self.mint_y.to_account_info(),
+                self.mint_y.decimals,
+            )
+        };
+
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_accounts = TransferChecked {
+            from,
+            to,
+            authority: self.user.to_account_info(),
+            mint,
+        };
+
+        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+        transfer_checked(cpi_context, amount, decimals)
+    }
+
+    pub fn withdraw_token(&mut self, is_x: bool, amount: u64) -> Result<()> {
+        let (from, to, mint, decimals) = if is_x {
+            (
                 self.vault_x.to_account_info(),
                 self.user_token_account_x.to_account_info(),
                 self.mint_x.to_account_info(),
                 self.mint_x.decimals,
-            ),
-            false => (
+            )
+        } else {
+            (
                 self.vault_y.to_account_info(),
                 self.user_token_account_y.to_account_info(),
                 self.mint_y.to_account_info(),
                 self.mint_y.decimals,
-            ),
+            )
         };
 
         let cpi_program = self.token_program.to_account_info();
@@ -144,22 +174,4 @@ impl<'info> Withdraw<'info> {
         let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
         transfer_checked(cpi_context, amount, decimals)
     }
-
-    pub fn burn_lp_tokens(&mut self, amount: u64) -> Result<()> {
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_accounts = Burn {
-            mint: self.mint_lp.to_account_info(),
-            from: self.user_token_account_lp.to_account_info(),
-            authority: self.user.to_account_info(),
-        };
-
-        let signer_seeds: &[&[&[u8]]] = &[&[
-            b"amm",
-            &[self.amm.amm_bump],
-        ]];
-
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-        burn(cpi_ctx, amount)
-    }
-
 }
