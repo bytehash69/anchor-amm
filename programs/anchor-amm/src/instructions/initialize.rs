@@ -27,8 +27,8 @@ pub struct Initialize<'info> {
         init,
         payer = admin,
         mint::decimals = 6,
-        mint::authority = admin.key(),
-        seeds = [b"lp", admin.key().as_ref()],
+        mint::authority = amm.key(),
+        seeds = [b"lp", amm.key().as_ref()],
         bump
     )]
     pub mint_lp: Account<'info, Mint>,
@@ -40,7 +40,7 @@ pub struct Initialize<'info> {
         associated_token::authority = amm,
         associated_token::token_program = token_program
     )]
-    pub vault_y: Account<'info, TokenAccount>,
+    pub vault_x: Account<'info, TokenAccount>,
 
     #[account(
         init,
@@ -49,7 +49,7 @@ pub struct Initialize<'info> {
         associated_token::authority = amm,
         associated_token::token_program = token_program
     )]
-    pub vault_x: Account<'info, TokenAccount>,
+    pub vault_y: Account<'info, TokenAccount>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -57,7 +57,7 @@ pub struct Initialize<'info> {
 }
 
 impl<'info> Initialize<'info> {
-    pub fn Initialize(
+    pub fn initialize(
         &mut self,
         fee: u16,
         authority: Option<Pubkey>,
