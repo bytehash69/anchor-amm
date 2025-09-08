@@ -66,7 +66,7 @@ pub struct Deposit<'info> {
     #[account(
         init_if_needed,        
         payer = user,
-        associated_token::mint = mint_y,
+        associated_token::mint = mint_lp,
         associated_token::authority = user,
         associated_token::token_program = token_program
     )]
