@@ -133,7 +133,7 @@ impl<'info> Withdraw<'info> {
             Transfer {
                 from: from,
                 to: to,
-                authority: self.signer.to_account_info(),
+                authority: self.config.to_account_info(),
             },
             signer_seeds,
         );
@@ -150,14 +150,13 @@ impl<'info> Withdraw<'info> {
             &[self.config.config_bump],
         ]];
 
-        let ctx = CpiContext::new_with_signer(
+        let ctx = CpiContext::new(
             self.token_program.to_account_info(),
             Burn {
                 mint: self.mint_lp.to_account_info(),
                 from: self.user_lp.to_account_info(),
-                authority: self.config.to_account_info(),
+                authority: self.signer.to_account_info(),
             },
-            signer_seeds,
         );
 
         burn(ctx, amount)?;

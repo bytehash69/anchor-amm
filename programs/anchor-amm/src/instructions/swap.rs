@@ -93,7 +93,7 @@ impl<'info> Swap<'info> {
         let swap_res = curve.swap(p, amount, min).unwrap();
 
         self.deposit_tokens(is_x, swap_res.deposit)?;
-        self.withdraw_tokens(is_x, swap_res.withdraw)?;
+        self.withdraw_tokens(!is_x, swap_res.withdraw)?;
 
         Ok(())
     }
